@@ -1,0 +1,56 @@
+%% Extractor de CCARACTERÍSTICAS:
+% MFCC feats por zonas refereanciass
+% ZCR crossing ratio por ventana
+% SPECT spectral  FFT
+%% Lectura de zonas en T_lim para dividirlas según win_len_sam y EXTRACCIÒN
+%MX_mfcc = find(1<0); %arreglo vacío donde se guardarán las características y etiquetas
+sa=0;
+n_bins_fft = 128;
+feats_spec = zeros (floor(length(T1)/salto),((n_bins_fft/2)+1)*2); %arreglo vacío para FFT
+
+feats_mfcc = zeros (floor(length(T1)/salto),28); %arreglo vacío para MFCC (14 valores por canal)
+
+feats_zcr = zeros (floor(length(T1)/salto),2); %arreglo vacío para ZCR
+for win = 1:floor(length(T1)/salto) %por canal
+    segment = Y1(:,1+sa:salto+sa); %segmentos según etiquetado previo (dos canales)
+        % FFT features
+        [spec_coeff]=spec(segment,Fs,n_bins_fft);
+        % ZCR features
+        [zcr_coeff] = zc(segment,Fs);
+        % MEL features
+    wavname = strcat(string(win),'.wav');
+    audiowrite(wavname,segment.',Fs);
+        [audioIn,fs] = audioread(wavname);
+        [coeffs,delta,deltaDelta,loc] = mfcc(audioIn,fs,'WindowLength',size(audioIn,1),'NumCoeffs',13);
+    %% matrices finales de características
+    feats_mfcc(win,:) = [coeffs(:,:,1) coeffs(:,:,2)];  %vector de coeficientes MFCC
+    feats_zcr(win,:) = zcr_coeff;                       %vector de coeficientes ZCR
+    feats_spec(win,:) = spec_coeff;                     %vector de coeficientes SPEC FFT
+    delete (wavname)
+    sa = salto+sa;
+end
+
+colnames_mfcc = {'A1' 'A2' 'A3' 'A4' 'A5' 'A6' 'A7' 'A8' 'A9' 'A10' 'A11' 'A12' 'A13' 'A14' ... %mfcc 1 mic
+    'B1' 'B2' 'B3' 'B4' 'B5' 'B6' 'B7' 'B8' 'B9' 'B10' 'B11' 'B12' 'B13' 'B14'};          %mfcc 2 mic
+colnames_czr = {'zcr1' 'zcr2'}; %zcr 2 mic 
+
+feats_mfcc = array2table(feats_mfcc,'VariableNames',colnames_mfcc); %tabla de coeficientes MFCC
+feats_zcr = array2table(feats_zcr,'VariableNames',colnames_czr);    %tabla de coeficientes MFCC
+feats_spec = array2table(feats_spec);    %tabla de coeficientes MFCC
+%% DATA SET PARA ML
+destinomfcc = char('D:\Registros_de_rodadura\ENE_2020\Ene_2020_out\04_FEATS_mfcc_2chan');
+mkdir(destinomfcc)
+writetable(feats_mfcc,char(strcat(...
+        strcat(destinomfcc,'\','mfcc_','',filename_elm(10:end-4)),'.csv')),'Delimiter',',');
+
+destinozcr = char('D:\Registros_de_rodadura\ENE_2020\Ene_2020_out\04_FEATS_zcr_2chan');
+mkdir(destinozcr)
+writetable(feats_zcr,char(strcat(...
+        strcat(destinozcr,'\','zcr_','',filename_elm(10:end-4)),'.csv')),'Delimiter',',');
+    
+destinospec = char('D:\Registros_de_rodadura\ENE_2020\Ene_2020_out\04_FEATS_fft_2chan');
+mkdir(destinospec)
+writetable(feats_spec,char(strcat(...
+        strcat(destinospec,'\','fft_','',filename_elm(10:end-4)),'.csv')),'Delimiter',',');
+
+disp({'XXXXXXXXXXXXX';'XXX LISTO XXX';'XXXXXXXXXXXXX'})
